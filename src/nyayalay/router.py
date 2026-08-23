@@ -22,14 +22,14 @@ def route_domain(incident: str) -> RouteResult:
         "Do not choose a legal section. Do not invent domains."
     )
     prompt = f"""
-Supported domains:
-{domains}
+        Supported domains:
+        {domains}
 
-Allowed domains: {", ".join(ROUTABLE_DOMAINS)}, unsupported
+        Allowed domains: {", ".join(ROUTABLE_DOMAINS)}, unsupported
 
-Incident:
-{incident}
-"""
+        Incident:
+        {incident}
+    """
     result = call_structured(RouteResult, system, prompt)
 
     if result.domain not in ROUTABLE_DOMAINS:

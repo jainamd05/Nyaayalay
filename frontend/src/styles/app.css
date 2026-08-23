@@ -293,6 +293,39 @@
   background: linear-gradient(transparent, #fdfcf9);
 }
 
+.formatted-provision {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.provision-intro {
+  margin: 0;
+}
+
+.provision-list {
+  margin: 0;
+  padding-left: 20px;
+  list-style-type: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.provision-list li {
+  position: relative;
+  padding-left: 12px;
+}
+
+.provision-list li::before {
+  content: "•";
+  position: absolute;
+  left: -12px;
+  color: var(--color-accent);
+  font-size: 1.2em;
+  line-height: 1.5;
+}
+
 .expand-btn {
   background: none;
   border: none;

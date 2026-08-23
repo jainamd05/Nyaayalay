@@ -88,7 +88,7 @@ export default function Home() {
           title: 'Analysis Requires Review',
           message: 'More information may be needed before a legal provision can be confidently identified.',
           isSuccess: false,
-          showProvision: false
+          showProvision: true
         };
       case 'no_evidence':
         return {
@@ -115,7 +115,7 @@ export default function Home() {
           title: 'Analysis Could Not Be Confirmed',
           message: 'A potentially relevant provision was found but could not be sufficiently verified from the available information.',
           isSuccess: false,
-          showProvision: false
+          showProvision: true
         };
       default:
         return {
@@ -253,7 +253,50 @@ export default function Home() {
                         </div>
                         
                         <div className={`provision-text ${!isExpanded ? 'collapsed' : ''}`}>
-                          {result.result.text}
+                          {(() => {
+                            const rawText = result.result.text;
+                            if (!rawText) return null;
+                            
+                            let text = rawText;
+                            const textMatch = rawText.match(/Text:\s*(.*)/is);
+                            if (textMatch) {
+                              text = textMatch[1];
+                            }
+
+                            const introSplit = text.split('—');
+                            if (introSplit.length > 1) {
+                              const intro = introSplit[0] + '—';
+                              const pointsText = introSplit.slice(1).join('—');
+                              const points = pointsText.split(/(?=\s*\([a-z0-9]+\)\s)/i).filter(p => p.trim());
+                              
+                              return (
+                                <div className="formatted-provision">
+                                  <p className="provision-intro">{intro.trim()}</p>
+                                  <ul className="provision-list">
+                                    {points.map((point, i) => (
+                                      <li key={i}>{point.trim()}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              );
+                            }
+                            
+                            const points = text.split(/(?=\s*\([a-z0-9]+\)\s)/i).filter(p => p.trim());
+                            if (points.length > 1) {
+                              return (
+                                <div className="formatted-provision">
+                                  <p className="provision-intro">{points[0].trim()}</p>
+                                  <ul className="provision-list">
+                                    {points.slice(1).map((point, i) => (
+                                      <li key={i}>{point.trim()}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              );
+                            }
+
+                            return <p>{text}</p>;
+                          })()}
                         </div>
                         
                         <button 

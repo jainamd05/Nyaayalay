@@ -9,8 +9,8 @@ DATA_DIR = PROJECT_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 CHROMA_DIR = DATA_DIR / "chroma"
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-20b")
 
 CHROMA_COLLECTION = "nyayalay_legal_corpus"
 
