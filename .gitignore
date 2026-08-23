@@ -10,8 +10,11 @@ __pycache__/
 
 data/raw/source_pdfs/
 data/raw/source_text/
-data/processed/
 data/chroma/
+
+# Ignore processed data except the legal corpus needed for deployment
+data/processed/*
+!data/processed/*.json
 *.log
 
 frontend/node_modules/
