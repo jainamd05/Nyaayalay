@@ -9,6 +9,31 @@ from .retrieval import Candidate, retrieve_candidates
 from .router import route_domain
 from .verification import verify
 
+def _is_development_record(candidate: Candidate) -> bool:
+    """
+    Hard guardrail: development/sample records must never be presented
+    as authoritative legal provisions.
+    """
+    searchable_text = " ".join(
+        [
+            candidate.act or "",
+            candidate.section or "",
+            candidate.title or "",
+            candidate.text or "",
+        ]
+    ).lower()
+
+    blocked_markers = [
+        "sample-",
+        "sample provision",
+        "development-only",
+        "development only",
+        "must not be treated as real law",
+        "replace with authoritative",
+    ]
+
+    return any(marker in searchable_text for marker in blocked_markers)
+
 def _candidate_dict(c: Candidate) -> dict:
     return {
         "act": c.act, "section": c.section, "title": c.title, "text": c.text,
@@ -87,6 +112,33 @@ def analyze_incident(incident: str) -> dict:
         }
 
     selected = next(c for c in candidates if c.section == classification.section)
+
+    if _is_development_record(selected):
+        return {
+            "status": "verification_failed",
+            "message": (
+                "The selected record is a development or sample record and "
+                "cannot be presented as an authoritative legal provision."
+            ),
+            "route": route.model_dump(),
+            "facts": facts.model_dump(),
+            "candidates": [_candidate_dict(c) for c in candidates],
+            "classification": classification.model_dump(),
+            "verification": {
+                "supported": False,
+                "confidence": 1.0,
+                "reasoning": (
+                    "A hard safety guardrail rejected the selected record because "
+                    "it is marked as a sample or development-only legal record."
+                ),
+                "evidence_support": [],
+                "contradictions": [
+                    "Development/sample records are not authoritative legal sources."
+                ],
+                "missing_facts": [],
+            },
+        }
+
     return {
         "status": "ok",
         "message": "A provision was selected and passed verification.",
