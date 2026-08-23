@@ -1,17 +1,22 @@
-import type { AnalysisResponse } from "../types/analysis";
+import type { LegalResponse } from "../types/legal";
 
-const API_BASE = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
-export async function analyzeIncident(incident: string): Promise<AnalysisResponse> {
-  const response = await fetch(`${API_BASE}/analysis`, {
+export async function analyzeLegalQuery(
+  query: string
+): Promise<LegalResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/analyze`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ incident }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query,
+    }),
   });
 
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "Analysis request failed.");
+    throw new Error("Unable to process your legal query.");
   }
 
   return response.json();
