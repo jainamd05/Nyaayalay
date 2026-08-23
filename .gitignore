@@ -10,7 +10,7 @@ __pycache__/
 
 data/raw/source_pdfs/
 data/raw/source_text/
-data/chroma/
+# data/chroma/
 
 # Ignore processed data except the legal corpus needed for deployment
 data/processed/*
