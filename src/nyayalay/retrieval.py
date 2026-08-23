@@ -41,8 +41,19 @@ def _lexical_score(query: str, candidate: Candidate) -> float:
     q = _tokens(query)
     if not q:
         return 0.0
-    c = _tokens(f"{candidate.title} {candidate.text} {candidate.section}")
-    return len(q & c) / len(q)
+
+    title_tokens = _tokens(candidate.title)
+    text_tokens = _tokens(candidate.text)
+
+    if not title_tokens and not text_tokens:
+        return 0.0
+
+    title_match = len(q & title_tokens) / len(q)
+    text_match = len(q & text_tokens) / len(q)
+
+    # A match in a legal provision's title is usually a stronger signal
+    # than the same word appearing somewhere inside the provision text.
+    return (0.65 * title_match) + (0.35 * text_match)
 
 def retrieve_candidates(query: str, domain: str, top_k: int = TOP_K) -> list[Candidate]:
     acts = acts_for_domain(domain)
