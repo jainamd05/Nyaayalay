@@ -1,18 +1,18 @@
 import { useState } from "react";
-import { analyzeLegalQuery } from "../services/api";
-import type { LegalResponse } from "../types/legal";
+import { analyzeIncident } from "../services/api";
+import type { AnalysisResponse } from "../types/analysis";
 
 export default function Home() {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<LegalResponse | null>(null);
+  const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    if (!query.trim()) {
-      setError("Please describe your legal situation first.");
+    if (query.trim().length < 10) {
+      setError("Please describe your situation in a little more detail.");
       return;
     }
 
@@ -21,7 +21,7 @@ export default function Home() {
       setError("");
       setResult(null);
 
-      const response = await analyzeLegalQuery(query);
+      const response = await analyzeIncident(query);
       setResult(response);
     } catch (err) {
       setError(
@@ -45,20 +45,20 @@ export default function Home() {
         </h1>
 
         <p className="hero-description">
-          Describe your situation in simple language. Nyayalay helps identify
-          relevant legal information and provides an AI-assisted explanation.
+          Describe your situation in simple language. Nyayalay analyzes the
+          information provided and identifies relevant legal provisions.
         </p>
 
         <form className="query-form" onSubmit={handleSubmit}>
           <textarea
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Example: Someone took my money but is refusing to return it. What legal options do I have?"
+            placeholder="Example: Someone threatened me and forcefully took away my mobile phone and wallet."
             rows={6}
           />
 
           <button type="submit" disabled={loading}>
-            {loading ? "Analyzing your case..." : "Analyze My Situation"}
+            {loading ? "Analyzing your situation..." : "Analyze My Situation"}
           </button>
         </form>
 
@@ -69,45 +69,101 @@ export default function Home() {
         <section className="result-section">
           <div className="result-card">
             <div className="result-header">
-              <span className="result-label">Legal Analysis</span>
+              <span className="result-label">Nyayalay Analysis</span>
 
-              {result.category && (
-                <span className="category-badge">{result.category}</span>
+              {result.route?.domain && (
+                <span className="category-badge">
+                  {result.route.domain}
+                </span>
               )}
             </div>
 
-            {result.summary && (
+            <h2>Analysis Status</h2>
+            <p>{result.message || result.status}</p>
+
+            {result.facts?.summary && (
               <>
-                <h2>Summary</h2>
-                <p>{result.summary}</p>
+                <h2>Incident Summary</h2>
+                <p>{result.facts.summary}</p>
               </>
             )}
 
-            <h2>What Nyayalay Found</h2>
-            <p>{result.answer}</p>
+            {result.result ? (
+              <div className="legal-provision">
+                <h2>Relevant Legal Provision</h2>
 
-            {result.sources && result.sources.length > 0 && (
-              <div className="sources-section">
-                <h2>Relevant Legal Sources</h2>
+                <article className="source-card">
+                  <h3>
+                    {result.result.act} — Section {result.result.section}
+                  </h3>
 
-                {result.sources.map((source, index) => (
-                  <article className="source-card" key={index}>
-                    <h3>{source.title}</h3>
+                  <h4>{result.result.title}</h4>
 
-                    {source.content && <p>{source.content}</p>}
-
-                    {source.source && (
-                      <small>Source: {source.source}</small>
-                    )}
-                  </article>
-                ))}
+                  <p>{result.result.text}</p>
+                </article>
+              </div>
+            ) : (
+              <div className="analysis-warning">
+                <h2>No Final Provision Selected</h2>
+                <p>
+                  Nyayalay could not confidently verify a legal provision based
+                  on the currently available evidence.
+                </p>
               </div>
             )}
 
+            {result.classification && (
+              <div className="classification-section">
+                <h2>AI Classification</h2>
+
+                <p>
+                  <strong>Proposed Section:</strong>{" "}
+                  {result.classification.section || "Not selected"}
+                </p>
+
+                <p>
+                  <strong>Confidence:</strong>{" "}
+                  {Math.round(result.classification.confidence * 100)}%
+                </p>
+
+                <p>{result.classification.explanation}</p>
+              </div>
+            )}
+
+            {result.verification && (
+              <div className="verification-section">
+                <h2>Verification</h2>
+
+                <p>
+                  <strong>Status:</strong>{" "}
+                  {result.verification.supported
+                    ? "Supported"
+                    : "Could not be verified"}
+                </p>
+
+                <p>{result.verification.reasoning}</p>
+              </div>
+            )}
+
+            {result.facts?.missing_or_uncertain_facts &&
+              result.facts.missing_or_uncertain_facts.length > 0 && (
+                <div className="missing-facts">
+                  <h2>Information That May Be Important</h2>
+
+                  <ul>
+                    {result.facts.missing_or_uncertain_facts.map(
+                      (fact, index) => (
+                        <li key={index}>{fact}</li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+
             <div className="disclaimer">
-              <strong>Important:</strong>{" "}
-              {result.disclaimer ||
-                "Nyayalay provides legal information and does not replace professional legal advice."}
+              <strong>Important:</strong> Nyayalay provides legal information
+              and AI-assisted analysis. It does not replace advice from a
+              qualified legal professional.
             </div>
           </div>
         </section>
