@@ -5,12 +5,14 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .env
+.env.*
+!.env.example
 
-data/raw/*
-data/chroma/*
-!data/raw/.gitkeep
-!data/chroma/.gitkeep
-
+data/raw/source_pdfs/
+data/raw/source_text/
+data/processed/
+data/chroma/
 *.log
-.DS_Store
-Thumbs.db
+
+frontend/node_modules/
+frontend/dist/

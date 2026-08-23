@@ -1,0 +1,20 @@
+[
+  {
+    "act": "BNS",
+    "section": "SAMPLE-01",
+    "title": "Sample provision — replace with authoritative text",
+    "text": "This is a development-only sample record. Replace this text with lawfully sourced authoritative legal text before using Nyayalay for real legal-information retrieval."
+  },
+  {
+    "act": "BNS",
+    "section": "SAMPLE-02",
+    "title": "Sample provision about property — development only",
+    "text": "Development-only sample text describing a property-related legal provision. It exists only to test retrieval and must not be treated as real law."
+  },
+  {
+    "act": "BNS",
+    "section": "SAMPLE-03",
+    "title": "Sample provision about threats — development only",
+    "text": "Development-only sample text describing a threat-related legal provision. It exists only to test retrieval and must not be treated as real law."
+  }
+]
