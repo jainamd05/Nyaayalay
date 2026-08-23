@@ -46,19 +46,8 @@ def _clean_result(result: dict) -> dict:
     return cleaned
 
 
-# def analyze(incident: str) -> dict:
-#     """
-#     Thin service boundary between HTTP and the core Nyayalay engine.
-#     """def analyze(incident: str) -> dict:
-    """
-    Thin service boundary between HTTP and the core Nyayalay engine.
-
-    The Nyayalay AI pipeline is imported lazily so the FastAPI server can
-    start without loading the complete AI/retrieval stack immediately.
-    """
+def analyze(incident: str) -> dict:
     from nyayalay.pipeline import analyze_incident
 
     result = analyze_incident(incident)
     return _clean_result(result)
-#     result = analyze_incident(incident)
-#     return _clean_result(result)
