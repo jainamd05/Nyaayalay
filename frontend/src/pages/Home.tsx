@@ -9,6 +9,50 @@ const LOADING_MESSAGES = [
   "Finalizing analysis..."
 ];
 
+/**
+ * Split a block of text into bullet-point sentences.
+ * Handles period-separated sentences, semicolons, and numbered lists.
+ */
+function textToBullets(text: string): string[] {
+  if (!text || !text.trim()) return [];
+
+  // Split on sentence endings (. or ; followed by space/end), or numbered items
+  const parts = text
+    .split(/(?<=[.;])\s+|(?=\d+\.\s)/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  // If splitting produced only 1 item, try splitting on commas with conjunctions
+  if (parts.length <= 1) {
+    const commaParts = text
+      .split(/,\s*(?:and|or|also|additionally|furthermore|moreover)\s+/i)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (commaParts.length > 1) return commaParts;
+  }
+
+  return parts.length > 0 ? parts : [text];
+}
+
+/** Render a confidence percentage as a visual bar */
+function ConfidenceBar({ value, label }: { value: number; label: string }) {
+  const pct = Math.round(value * 100);
+  const level = pct >= 75 ? "high" : pct >= 45 ? "medium" : "low";
+
+  return (
+    <div className="confidence-bar-container">
+      <span className="confidence-label">{label}</span>
+      <div className="confidence-track">
+        <div
+          className={`confidence-fill ${level}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="confidence-value">{pct}%</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<AnalysisResponse | null>(null);
@@ -67,6 +111,122 @@ export default function Home() {
     return tags.map((t, i) => (
       <span key={i} className="fact-tag highlight">{t}</span>
     ));
+  };
+
+  /** Render the Key Facts grid from extracted facts */
+  const renderKeyFacts = () => {
+    if (!result?.facts) return null;
+
+    const facts = result.facts;
+    const rows: { label: string; value: React.ReactNode }[] = [];
+
+    // Parties
+    if (facts.victim) rows.push({ label: "Victim / Complainant", value: facts.victim });
+    if (facts.accused) rows.push({ label: "Accused / Other Party", value: facts.accused });
+    if (facts.relationship_between_parties) rows.push({ label: "Relationship", value: facts.relationship_between_parties });
+
+    // Context
+    if (facts.location) rows.push({ label: "Location", value: facts.location });
+    if (facts.time_or_date) rows.push({ label: "Time / Date", value: facts.time_or_date });
+    if (facts.intent) rows.push({ label: "Alleged Intent", value: facts.intent });
+
+    // Financial
+    if (facts.money_amount) rows.push({ label: "Amount Involved", value: facts.money_amount });
+
+    // Array fields as tag chips
+    if (facts.alleged_conduct && facts.alleged_conduct.length > 0) {
+      rows.push({
+        label: "Alleged Conduct",
+        value: (
+          <div className="array-tags">
+            {facts.alleged_conduct.map((c, i) => (
+              <span key={i} className="array-tag">{c}</span>
+            ))}
+          </div>
+        ),
+      });
+    }
+
+    if (facts.harm && facts.harm.length > 0) {
+      rows.push({
+        label: "Harm Caused",
+        value: (
+          <div className="array-tags">
+            {facts.harm.map((h, i) => (
+              <span key={i} className="array-tag">{h}</span>
+            ))}
+          </div>
+        ),
+      });
+    }
+
+    if (facts.injuries && facts.injuries.length > 0) {
+      rows.push({
+        label: "Injuries",
+        value: (
+          <div className="array-tags">
+            {facts.injuries.map((inj, i) => (
+              <span key={i} className="array-tag">{inj}</span>
+            ))}
+          </div>
+        ),
+      });
+    }
+
+    if (facts.weapons_or_tools && facts.weapons_or_tools.length > 0) {
+      rows.push({
+        label: "Weapons / Tools",
+        value: (
+          <div className="array-tags">
+            {facts.weapons_or_tools.map((w, i) => (
+              <span key={i} className="array-tag">{w}</span>
+            ))}
+          </div>
+        ),
+      });
+    }
+
+    if (facts.property_items && facts.property_items.length > 0) {
+      rows.push({
+        label: "Property Items",
+        value: (
+          <div className="array-tags">
+            {facts.property_items.map((p, i) => (
+              <span key={i} className="array-tag">{p}</span>
+            ))}
+          </div>
+        ),
+      });
+    }
+
+    if (facts.evidence && facts.evidence.length > 0) {
+      rows.push({
+        label: "Available Evidence",
+        value: (
+          <div className="array-tags">
+            {facts.evidence.map((e, i) => (
+              <span key={i} className="array-tag">{e}</span>
+            ))}
+          </div>
+        ),
+      });
+    }
+
+    if (rows.length === 0) return null;
+
+    return (
+      <>
+        <h4 className="sub-section-heading">Key Facts Identified</h4>
+        <div className="facts-grid">
+          {rows.map((row, i) => (
+            <div key={i} className="fact-row">
+              <span className="fact-label">{row.label}</span>
+              <span className="fact-value">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </>
+    );
   };
 
   const getStatusDisplay = () => {
@@ -235,16 +395,32 @@ export default function Home() {
                       </div>
                     )}
 
+                    {/* ── Incident Summary (bulleted) ── */}
                     {result.facts?.summary && (
                       <div className="summary-box">
                         <h2 className="section-heading">Incident Summary</h2>
-                        <p className="section-text">{result.facts.summary}</p>
+                        {(() => {
+                          const bullets = textToBullets(result.facts.summary);
+                          return bullets.length > 1 ? (
+                            <ul className="bullet-list">
+                              {bullets.map((b, i) => (
+                                <li key={i}>{b}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="section-text">{result.facts.summary}</p>
+                          );
+                        })()}
                         <div className="facts-container">
                           {renderFactTags()}
                         </div>
+
+                        {/* Key Facts Grid */}
+                        {renderKeyFacts()}
                       </div>
                     )}
 
+                    {/* ── Legal Provision ── */}
                     {statusDisplay?.showProvision && result.result && (
                       <div className="legal-provision">
                         <div className="provision-header">
@@ -308,25 +484,117 @@ export default function Home() {
                       </div>
                     )}
 
+                    {/* ── Why Was This Selected? (bulleted explanation + missing info) ── */}
                     {statusDisplay?.showProvision && result.classification && (
                       <div className="verification-box">
                         <h2 className="section-heading">Why was this selected?</h2>
-                        <p className="section-text">
-                          Based on your description, this situation aligns with <strong>{result.classification.section || "the identified laws"}</strong>. 
-                          {result.classification.explanation}
-                        </p>
-                        <p className="section-text" style={{marginTop: '12px', fontSize: '0.9rem', color: 'var(--color-text-muted)'}}>
-                          Analysis Confidence: {Math.round(result.classification.confidence * 100)}%
-                        </p>
+
+                        {/* Explanation as bullet points */}
+                        {result.classification.explanation && (() => {
+                          const intro = result.classification.section
+                            ? `Based on your description, this situation aligns with ${result.classification.section}.`
+                            : null;
+                          const bullets = textToBullets(result.classification.explanation);
+
+                          return (
+                            <>
+                              {intro && <p className="section-text" style={{ marginBottom: '12px' }}><strong>{intro}</strong></p>}
+                              {bullets.length > 1 ? (
+                                <ul className="bullet-list">
+                                  {bullets.map((b, i) => (
+                                    <li key={i}>{b}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="section-text">{result.classification.explanation}</p>
+                              )}
+                            </>
+                          );
+                        })()}
+
+                        {/* Confidence bar */}
+                        <ConfidenceBar
+                          value={result.classification.confidence}
+                          label="Analysis Confidence"
+                        />
+
+                        {/* Missing information from classification */}
+                        {result.classification.missing_information && result.classification.missing_information.length > 0 && (
+                          <>
+                            <h4 className="sub-section-heading">Additional information that could strengthen this analysis</h4>
+                            <ul className="evidence-list">
+                              {result.classification.missing_information.map((info, i) => (
+                                <li key={i} className="missing-item">{info}</li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
                       </div>
                     )}
 
+                    {/* ── Verification Status (structured with evidence/contradictions) ── */}
                     {statusDisplay?.showProvision && result.verification && (
                       <div className="verification-box">
                         <h2 className="section-heading">Verification Status</h2>
-                        <p className="section-text">
-                          <strong>{result.verification.supported ? "Supported by facts:" : "Could not be fully verified:"}</strong> {result.verification.reasoning}
+
+                        {/* Reasoning as bullet points */}
+                        <p className="section-text" style={{ marginBottom: '8px' }}>
+                          <strong>{result.verification.supported ? "Supported by facts:" : "Could not be fully verified:"}</strong>
                         </p>
+                        {(() => {
+                          const bullets = textToBullets(result.verification.reasoning);
+                          return bullets.length > 1 ? (
+                            <ul className="bullet-list">
+                              {bullets.map((b, i) => (
+                                <li key={i}>{b}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="section-text">{result.verification.reasoning}</p>
+                          );
+                        })()}
+
+                        {/* Evidence Support */}
+                        {result.verification.evidence_support && result.verification.evidence_support.length > 0 && (
+                          <>
+                            <h4 className="sub-section-heading">Supporting Evidence</h4>
+                            <ul className="evidence-list">
+                              {result.verification.evidence_support.map((e, i) => (
+                                <li key={i} className="evidence-item">{e}</li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+
+                        {/* Contradictions */}
+                        {result.verification.contradictions && result.verification.contradictions.length > 0 && (
+                          <>
+                            <h4 className="sub-section-heading">Points of Concern</h4>
+                            <ul className="evidence-list">
+                              {result.verification.contradictions.map((c, i) => (
+                                <li key={i} className="contradiction-item">{c}</li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+
+                        {/* Missing Facts */}
+                        {result.verification.missing_facts && result.verification.missing_facts.length > 0 && (
+                          <>
+                            <h4 className="sub-section-heading">Facts Not Yet Confirmed</h4>
+                            <ul className="evidence-list">
+                              {result.verification.missing_facts.map((f, i) => (
+                                <li key={i} className="missing-item">{f}</li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+
+                        {/* Verification confidence bar */}
+                        <ConfidenceBar
+                          value={result.verification.confidence}
+                          label="Verification Confidence"
+                        />
                       </div>
                     )}
                   </>

@@ -4,31 +4,24 @@ import type {
   } from "../types/analysis";
   
   // const API_BASE_URL = "http://127.0.0.1:8000/api";
-  const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
-  
-  export async function analyzeIncident(
-    incident: string
-  ): Promise<AnalysisResponse> {
-    const request: AnalysisRequest = {
+  // const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
+  const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+export async function analyzeIncident(incident: string) {
+  const response = await fetch(`${API_BASE_URL}/api/analysis`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
       incident,
-    };
-  
-    const response = await fetch(`${API_BASE_URL}/analysis`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-    });
-  
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-  
-      throw new Error(
-        errorData?.detail ||
-          `Server error: ${response.status}`
-      );
-    }
-  
-    return response.json();
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Analysis request failed: ${response.status}`);
   }
+
+  return response.json();
+}
