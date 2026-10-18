@@ -130,7 +130,7 @@ pip install -r requirements.txt
 
 ### 3. Configure the API key
 
-Copy `.env.example` to `.env` and add your Google Gemini API key.
+Copy `.env.example` to `.env` and add your Groq API key (`GROQ_API_KEY`).
 
 ### 4. Build the local vector index
 
@@ -146,7 +146,7 @@ The script reads JSON files from `data/raw/` and creates the Chroma database in 
 pytest
 ```
 
-Tests that exercise the LLM require `GEMINI_API_KEY`. The router and retrieval smoke tests can be run independently.
+Tests that exercise the LLM require `GROQ_API_KEY`. The router and retrieval smoke tests can be run independently.
 
 ### 6. Run the pipeline
 
@@ -194,20 +194,45 @@ Retrieval is performed with a metadata filter based on the routed domain. This p
 7. Add a UI/API only after the backend pipeline is stable.
 
 
-## Gemini models
+## LLM provider
 
-Nyayalay uses Google's official `google-genai` Python SDK.
-
-The default development model is:
-
-```text
-gemini-2.5-flash
-```
-
-You can change the model without changing application code:
+Nyayalay calls Groq through its OpenAI-compatible API (`openai` Python SDK) and asks for JSON output validated against Pydantic schemas.
 
 ```env
-GEMINI_MODEL=your-model-name
+GROQ_API_KEY=your_key
+LLM_MODEL=openai/gpt-oss-20b
+# Optional: any other OpenAI-compatible endpoint
+# LLM_BASE_URL=https://api.groq.com/openai/v1
 ```
 
-The pipeline uses Gemini structured JSON output with Pydantic schemas for domain routing, fact extraction, classification, and verification. Google's documentation explicitly supports structured output with Pydantic schemas. See the official documentation: https://ai.google.dev/gemini-api/docs/structured-output
+## Running locally
+
+```bash
+pip install -r requirements.txt
+bash start.sh                     # API on http://127.0.0.1:8000 (docs at /docs)
+cd frontend && npm install && npm run dev   # UI on http://localhost:5173
+```
+
+## Deployment
+
+### Backend (Render)
+
+`render.yaml` describes the service. If you configure it by hand:
+
+- Root directory: repository root (not `backend/`)
+- Build command: `pip install -r requirements.txt`
+- Start command: `bash start.sh`
+- Environment variables:
+  - `GROQ_API_KEY` — required
+  - `LLM_MODEL` — optional, defaults to `openai/gpt-oss-20b`
+  - `FRONTEND_URL` — your Vercel URL (comma-separated for several). Any `*.vercel.app` origin is allowed by default.
+
+`GET /api/health` reports whether the LLM key is configured. The Chroma index in `data/chroma/` is committed and used as-is; the embedding model is downloaded and loaded in the background at startup.
+
+### Frontend (Vercel)
+
+- Root directory: `frontend`
+- Build command: `npm run build`, output directory: `dist`
+- Environment variable: `VITE_API_BASE_URL=https://<your-service>.onrender.com` (`VITE_API_URL` is also accepted). Redeploy after changing it — Vite bakes it in at build time.
+
+Render's free tier sleeps when idle, so the first request after a pause can take up to a minute; the UI wakes the backend as soon as the page loads.

@@ -9,16 +9,14 @@ description = "Domain-routed, retrieval-grounded Indian legal information assist
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "beautifulsoup4>=4.12",
-    "chromadb>=0.5",
-    "google-genai>=1.30",
+    "chromadb>=1.0",
+    "openai>=1.50",
     "pydantic>=2.7",
     "python-dotenv>=1.0",
-    "requests>=2.32",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6"]
+dev = ["pytest>=8.0", "ruff>=0.6", "beautifulsoup4>=4.12", "requests>=2.32", "pypdf>=5.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-The API must be running at:
+The API must be running at (override with `VITE_API_BASE_URL` in `frontend/.env`):
 
 ```text
 http://127.0.0.1:8000

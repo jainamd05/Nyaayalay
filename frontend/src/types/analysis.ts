@@ -35,11 +35,8 @@ export interface Candidate {
   act: string;
   section: string;
   title: string;
-  text: string;
-  distance: number;
-  semantic_score: number;
-  lexical_score: number;
   retrieval_score: number;
+  text?: string;
 }
 
 export interface Classification {

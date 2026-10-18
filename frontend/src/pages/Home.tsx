@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { analyzeIncident } from "../services/api";
+import { analyzeIncident, wakeBackend } from "../services/api";
 import type { AnalysisResponse } from "../types/analysis";
 
 const LOADING_MESSAGES = [
@@ -60,6 +60,11 @@ export default function Home() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Wake the (possibly sleeping) backend as soon as the page opens.
+  useEffect(() => {
+    wakeBackend();
+  }, []);
 
   useEffect(() => {
     let interval: number;
@@ -310,6 +315,7 @@ export default function Home() {
           <form className="query-form" onSubmit={handleSubmit}>
             <textarea
               value={query}
+              maxLength={10000}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Describe what happened. Include what occurred, who was involved, and any important details you remember."
               rows={6}
@@ -327,6 +333,7 @@ export default function Home() {
           <div className="loading-container">
             <div className="spinner"></div>
             <div className="loading-text">{LOADING_MESSAGES[loadingStep]}</div>
+            <p className="section-text">This can take up to a minute if the server has been idle.</p>
           </div>
         )}
 
@@ -484,15 +491,35 @@ export default function Home() {
                       </div>
                     )}
 
+                    {/* ── Closest candidates when no provision could be confirmed ── */}
+                    {!result.result && result.candidates && result.candidates.length > 0 && (
+                      <div className="verification-box">
+                        <h2 className="section-heading">Provisions that may be relevant</h2>
+                        <p className="section-text" style={{ marginBottom: '12px' }}>
+                          These provisions were the closest matches in the legal corpus, but none could be confirmed from the details provided:
+                        </p>
+                        <ul className="evidence-list">
+                          {result.candidates.map((c, i) => (
+                            <li key={i} className="missing-item">
+                              <strong>{c.act} — Section {c.section}</strong>{c.title ? `: ${c.title}` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     {/* ── Why Was This Selected? (bulleted explanation + missing info) ── */}
                     {statusDisplay?.showProvision && result.classification && (
                       <div className="verification-box">
-                        <h2 className="section-heading">Why was this selected?</h2>
+                        <h2 className="section-heading">
+                          {result.classification.section ? "Why was this selected?" : "Why no provision was selected"}
+                        </h2>
 
                         {/* Explanation as bullet points */}
                         {result.classification.explanation && (() => {
+                          const act = result.result?.act ?? result.candidates?.[0]?.act;
                           const intro = result.classification.section
-                            ? `Based on your description, this situation aligns with ${result.classification.section}.`
+                            ? `Based on your description, this situation aligns with Section ${result.classification.section}${act ? ` of the ${act}` : ''}.`
                             : null;
                           const bullets = textToBullets(result.classification.explanation);
 

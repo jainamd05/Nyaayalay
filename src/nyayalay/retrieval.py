@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from functools import lru_cache
+import logging
 import re
 import chromadb
 from .config import (
@@ -24,9 +26,27 @@ class Candidate:
     lexical_score: float = 0.0
     retrieval_score: float = 0.0
 
+logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
 def get_collection():
+    # Opening the persistent client is slow; reuse it across requests.
     client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    return client.get_or_create_collection(CHROMA_COLLECTION)
+    collection = client.get_or_create_collection(CHROMA_COLLECTION)
+    if collection.count() == 0:
+        logger.warning(
+            "Chroma collection %r at %s is empty; run data-prep/build_corpus_index.py",
+            CHROMA_COLLECTION, CHROMA_DIR,
+        )
+    return collection
+
+
+def warm_up() -> None:
+    """Open the index and load the embedding model so the first request is fast."""
+    collection = get_collection()
+    if collection.count():
+        collection.query(query_texts=["warm up"], n_results=1)
 
 def _tokens(text: str) -> set[str]:
     words = re.findall(r"[a-zA-Z0-9][a-zA-Z0-9_-]{1,}", text.lower())

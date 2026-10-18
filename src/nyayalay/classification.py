@@ -1,7 +1,25 @@
-from .config import CLASSIFICATION_MIN_CONFIDENCE
+import re
+
 from .llm_utils import call_structured, pretty_json
 from .retrieval import Candidate
 from .schemas import ClassificationResult
+
+
+def _section_key(value: str | None) -> str:
+    """Normalise "Section 303", "BNS s. 303", "303." etc. to "303"."""
+    if not value:
+        return ""
+    key = value.strip().lower()
+    key = re.sub(r"^(?:(?:bns|bnss|bsa)\b[\s,.:-]*)?", "", key)
+    key = re.sub(r"^(?:section|sec\.?|s\.)\s*", "", key)
+    return key.strip(" .:-").replace(" ", "")
+
+
+def match_candidate(section: str | None, candidates: list[Candidate]) -> Candidate | None:
+    key = _section_key(section)
+    if not key:
+        return None
+    return next((c for c in candidates if _section_key(c.section) == key), None)
 
 def classify(facts, candidates: list[Candidate]) -> ClassificationResult:
     if not candidates:
@@ -29,19 +47,25 @@ Retrieved candidates:
 {candidate_text}
 
 Select the single best supported candidate, or null.
+In the "section" field return only the exact Section value shown for the
+chosen candidate (for example "303"), without the Act name or the word "Section".
 """
     result = call_structured(ClassificationResult, system, prompt)
-    valid = {c.section for c in candidates}
+    selected = match_candidate(result.section, candidates)
 
-    if result.section not in valid:
+    if selected is None:
         return ClassificationResult(
             section=None, confidence=0.0,
-            explanation="The model did not select an exact retrieved section.",
+            explanation=(
+                result.explanation
+                if result.section is None
+                else "The model did not select an exact retrieved section."
+            ),
             missing_information=result.missing_information,
         )
 
-    rank = next(
-        i + 1 for i, c in enumerate(candidates) if c.section == result.section
+    rank = candidates.index(selected) + 1
+    return result.model_copy(
+        update={"section": selected.section, "candidate_rank": rank}
     )
-    return result.model_copy(update={"candidate_rank": rank})
 

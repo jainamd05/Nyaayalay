@@ -1,3 +1,4 @@
+from .classification import match_candidate
 from .config import VERIFICATION_MIN_CONFIDENCE
 from .llm_utils import call_structured, pretty_json
 from .retrieval import Candidate
@@ -10,7 +11,7 @@ def verify(facts, proposed_section: str | None, candidates: list[Candidate]) -> 
             reasoning="There is no proposed section to verify."
         )
 
-    candidate = next((c for c in candidates if c.section == proposed_section), None)
+    candidate = match_candidate(proposed_section, candidates)
     if candidate is None:
         return VerificationResult(
             supported=False, confidence=0.0,

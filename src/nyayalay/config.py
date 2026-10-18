@@ -5,12 +5,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = PROJECT_ROOT / "data"
+# Override when the package is installed outside the repository checkout.
+DATA_DIR = Path(os.getenv("NYAYALAY_DATA_DIR", PROJECT_ROOT / "data"))
 RAW_DATA_DIR = DATA_DIR / "raw"
 CHROMA_DIR = DATA_DIR / "chroma"
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-20b")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-20b").strip()
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1").strip()
+LLM_TIMEOUT_SECONDS = float(os.getenv("LLM_TIMEOUT_SECONDS", "45"))
+LLM_MAX_RETRIES = 1
 
 CHROMA_COLLECTION = "nyayalay_legal_corpus"
 
