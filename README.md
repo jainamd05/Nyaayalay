@@ -134,11 +134,15 @@ Copy `.env.example` to `.env` and add your Groq API key (`GROQ_API_KEY`).
 
 ### 4. Build the local vector index
 
+A ready-made index of the BNS, BNSS and BSA is committed in `data/chroma/`, so this step is only needed after changing the corpus:
+
 ```bash
-python data-prep/build_corpus_index.py
+python data-prep/download_official_acts.py   # official PDFs from India Code
+python data-prep/parse_act_pdf.py            # -> data/processed/*_sections.json
+python scripts/ingest_legal_corpus.py        # -> data/chroma/ (all three Acts)
 ```
 
-The script reads JSON files from `data/raw/` and creates the Chroma database in `data/chroma/`.
+Use `scripts/ingest_legal_corpus.py` for the index the app uses; `data-prep/build_corpus_index.py` indexes only the BNS by default.
 
 ### 5. Run tests
 

@@ -1,6 +1,7 @@
 import logging
 import sys
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -18,10 +19,30 @@ from app.core.config import settings  # noqa: E402
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nyayalay.api")
 
+
+def _warm_up() -> None:
+    try:
+        from nyayalay.retrieval import warm_up
+
+        warm_up()
+        logger.info("Retrieval index and embedding model are ready.")
+    except Exception:  # pragma: no cover - best effort only
+        logger.exception("Retrieval warm-up failed")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Loading Chroma and the embedding model takes a while; do it in the
+    # background so the server binds its port immediately.
+    threading.Thread(target=_warm_up, daemon=True).start()
+    yield
+
+
 app = FastAPI(
     title="Nyayalay API",
     version="0.1.0",
     description="API layer for the Nyayalay legal-information assistant.",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -36,23 +57,6 @@ app.add_middleware(
 
 app.include_router(health_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
-
-
-def _warm_up() -> None:
-    try:
-        from nyayalay.retrieval import warm_up
-
-        warm_up()
-        logger.info("Retrieval index and embedding model are ready.")
-    except Exception:  # pragma: no cover - best effort only
-        logger.exception("Retrieval warm-up failed")
-
-
-@app.on_event("startup")
-def start_warm_up() -> None:
-    # Loading Chroma and the embedding model takes a while; do it in the
-    # background so the server binds its port immediately.
-    threading.Thread(target=_warm_up, daemon=True).start()
 
 
 @app.get("/")

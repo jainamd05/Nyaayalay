@@ -123,15 +123,42 @@ def clean_body(text: str) -> str:
     text = re.sub(r"\s+\d{1,3}\s*$", "", text)
     return text.strip()
 
+def looks_like_title(title: str) -> bool:
+    # Real headings are short sentences such as "Theft." or "When police may
+    # arrest without warrant." A heading that starts with a sub-section
+    # marker or stops mid-sentence is operative text, not a title.
+    title = title.strip()
+    return (
+        bool(title)
+        and len(title) <= 200
+        and title.endswith(".")
+        and not title.startswith("(")
+        and title[0].isupper()
+    )
+
+def arrangement_title(section: dict) -> str | None:
+    # Entries in the Arrangement of Sections carry only the heading, which
+    # may wrap onto the next line (and so land in "text").
+    text = section.get("text", "")
+    if len(text) > 120:
+        return None
+    candidate = f"{section['title']} {text}".strip()
+    return candidate if looks_like_title(candidate) else None
+
 def deduplicate_sections(sections: list[dict]) -> list[dict]:
     # A section number can appear more than once because the PDF contains
     # an Arrangement of Sections/index before the actual legal provisions.
     # Keep the occurrence with the most substantive extracted text.
 
     by_number: dict[str, dict] = {}
+    index_titles: dict[str, str] = {}
 
     for section in sections:
         number = section["section"]
+
+        title = arrangement_title(section)
+        if title and number not in index_titles:
+            index_titles[number] = title
 
         if number not in by_number:
             by_number[number] = section
@@ -141,6 +168,14 @@ def deduplicate_sections(sections: list[dict]) -> list[dict]:
             # Prefer the version containing more actual legal text.
             if len(section.get("text", "")) > len(existing.get("text", "")):
                 by_number[number] = section
+
+    # Many BNSS/BSA provisions print their heading only as a side note, so the
+    # body occurrence starts directly with "(1) ...". Take the heading from the
+    # Arrangement of Sections and put the misread line back into the text.
+    for number, section in by_number.items():
+        if not looks_like_title(section["title"]) and number in index_titles:
+            section["text"] = f"{section['title']} {section['text']}".strip()
+            section["title"] = index_titles[number]
 
     return sorted(by_number.values(), key=lambda x: int(x["section"]))
 
