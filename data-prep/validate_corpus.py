@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from pathlib import Path
 import json
 import sys
+from pathlib import Path
 
 from act_sources import ACT_SOURCES
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_DIR = ROOT / "data" / "processed"
+
+# Share of titles allowed to lack a closing "." or "—" before failing.
+MAX_SUSPECT_TITLE_SHARE = 0.05
 
 def validate_act(act_code: str) -> bool:
     path = PROCESSED_DIR / f"{act_code.lower()}_2023_sections.json"
@@ -63,6 +66,32 @@ def validate_act(act_code: str) -> bool:
     if len(section_numbers) != len(set(section_numbers)):
         failures.append("duplicate section numbers detected")
 
+    if section_numbers:
+        missing_numbers = sorted(
+            set(range(1, max(section_numbers) + 1)) - set(section_numbers)
+        )
+        if missing_numbers:
+            failures.append(f"missing section numbers: {missing_numbers[:20]}")
+
+    # A section heading ends with a full stop (or, rarely, a dash). A title
+    # that does not usually means the parser took the first line of the
+    # body for the heading.
+    suspect_titles = [
+        record.get("section")
+        for record in records
+        if not str(record.get("title") or "").rstrip().endswith((".", "—"))
+    ]
+    if len(suspect_titles) > MAX_SUSPECT_TITLE_SHARE * len(records):
+        failures.append(
+            f"{len(suspect_titles)} of {len(records)} titles do not end in "
+            f"'.' or '—' (e.g. sections {suspect_titles[:10]})"
+        )
+    elif suspect_titles:
+        print(
+            f"[WARN] {act_code}: titles not ending in '.' or '—' in "
+            f"sections {suspect_titles[:20]}"
+        )
+
     if failures:
         print(f"[FAIL] {act_code}:")
         for failure in failures[:20]:
@@ -77,7 +106,9 @@ def validate_act(act_code: str) -> bool:
 
 def main():
     requested = sys.argv[1:] or list(ACT_SOURCES.keys())
-    ok = all(validate_act(code) for code in requested)
+    # Validate every act, even after a failure.
+    results = [validate_act(code) for code in requested]
+    ok = all(results)
     raise SystemExit(0 if ok else 1)
 
 if __name__ == "__main__":
