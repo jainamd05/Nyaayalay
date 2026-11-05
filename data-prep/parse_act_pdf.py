@@ -50,14 +50,16 @@ PAGE_ARTIFACT_PATTERNS = [
     re.compile(r"_{3,}"),
     # Odd pages: "Sec. 1] THE GAZETTE OF INDIA EXTRAORDINARY 3";
     # even pages: "4 THE GAZETTE OF INDIA EXTRAORDINARY [Part II—".
-    re.compile(r"(?:\b\d{1,4}\s+)?\bTHE GAZETTE OF INDIA EXTRAORDINARY\b(?:\s*\d{1,4}\b)?"),
+    # pypdf sometimes splits the last letter off: "EXTRAORDINAR Y".
+    re.compile(r"(?:\b\d{1,4}\s+)?\bTHE GAZETTE OF INDIA EXTRAORDINAR\s?Y\b(?:\s*\d{1,4}\b)?"),
     re.compile(r"\[\s*Part\s+II\s*[—–-]+\s*(?:Sec\.\s*\d\s*\]?)?"),
-    re.compile(r"\bSec\.\s*\d\s*\]"),
+    re.compile(r"\b(?:Sec|SEC)\.\s*\d\s*\]"),
     # Margin citations of other Acts ("21 of 2000."), but not "(21 of 2000)".
     re.compile(r"(?<![(\w])\d{1,3} of (?:18|19|20)\d\d\.(?!\))"),
 ]
 ARRANGEMENT_NOISE_RE = re.compile(
-    r"^(?:SECTIONS?|ARRANGEMENT OF SECTIONS|[ivxlcdm]+|\d+)$", re.I
+    r"^(?:SECTIONS?|CLAUSES?|ARRANGEMENT OF (?:SECTIONS|CLAUSES)|\(?[ivxlcdm]+\)?|\d+)$",
+    re.I,
 )
 INLINE_TITLE_SPLIT_RE = re.compile(r"\.\s*[—–-]\s*")
 
@@ -255,6 +257,10 @@ def _arrangement_titles(run: list[dict]) -> dict[int, str]:
     for entry in run:
         parts = [entry["rest"]]
         for line in entry["lines"]:
+            # A heading ends at its full stop. What follows is a group
+            # sub-heading ("Admissions"), a chapter name or a page number.
+            if parts[-1].rstrip().endswith("."):
+                break
             if _is_uppercase_line(line) or ARRANGEMENT_NOISE_RE.match(line):
                 break
             parts.append(line)
