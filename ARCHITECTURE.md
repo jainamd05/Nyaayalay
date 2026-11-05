@@ -173,7 +173,7 @@ Nyayalay Pipeline
   │
   ├── 2. Fact Extraction
   │       │
-  │       └── Gemini structured output
+  │       └── LLM (Groq) structured output
   │
   ├── 3. Retrieval
   │       │
@@ -181,11 +181,11 @@ Nyayalay Pipeline
   │
   ├── 4. Classification
   │       │
-  │       └── Gemini chooses only retrieved candidates
+  │       └── LLM chooses only retrieved candidates
   │
   └── 5. Verification
           │
-          └── Gemini checks result against evidence
+          └── LLM checks result against evidence
   │
   ▼
 FastAPI JSON response

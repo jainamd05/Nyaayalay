@@ -1,3 +1,5 @@
+import re
+
 from .config import ROUTER_MIN_CONFIDENCE
 from .domains import ROUTABLE_DOMAINS
 from .llm_utils import call_structured
@@ -31,6 +33,10 @@ def route_domain(incident: str) -> RouteResult:
         {incident}
     """
     result = call_structured(RouteResult, system, prompt)
+
+    # Tolerate "Criminal", "criminal procedure", "criminal-procedure", ...
+    domain = re.sub(r"[\s-]+", "_", result.domain.strip().lower())
+    result = result.model_copy(update={"domain": domain})
 
     if result.domain not in ROUTABLE_DOMAINS:
         return RouteResult(

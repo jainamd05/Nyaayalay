@@ -12,6 +12,22 @@ CHROMA_DIR = ROOT / "data" / "chroma"
 
 COLLECTION_NAME = "nyayalay_legal_corpus"
 
+# The collection is rebuilt from scratch, so by default index every act the
+# app supports. Indexing a subset would silently drop the other acts.
+ALL_ACTS = ["BNS", "BNSS", "BSA"]
+
+def create_document(record: dict) -> str:
+    """Searchable text; must match scripts/ingest_legal_corpus.py."""
+    parts = [
+        f"Act: {record.get('act_title', record.get('act', 'Unknown'))}",
+        f"Section: {record.get('section', 'Unknown')}",
+    ]
+    if record.get("title"):
+        parts.append(f"Title: {record['title']}")
+    if record.get("text"):
+        parts.append(f"Text: {record['text']}")
+    return "\n".join(parts)
+
 def load_records(act_code: str) -> list[dict]:
     path = PROCESSED_DIR / f"{act_code.lower()}_2023_sections.json"
     if not path.exists():
@@ -40,7 +56,7 @@ def build_index(act_codes: list[str]) -> None:
     collection = client.get_or_create_collection(COLLECTION_NAME)
 
     ids = [record["id"] for record in all_records]
-    documents = [record["text"] for record in all_records]
+    documents = [create_document(record) for record in all_records]
     metadatas = [
         {
             "act": record["act"],
@@ -71,7 +87,7 @@ def build_index(act_codes: list[str]) -> None:
 def main():
     acts = [arg.upper() for arg in sys.argv[1:]]
     if not acts:
-        acts = ["BNS"]
+        acts = ALL_ACTS
 
     build_index(acts)
 

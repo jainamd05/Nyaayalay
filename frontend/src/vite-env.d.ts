@@ -1,7 +1,10 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
+  /** Backend base URL, e.g. https://your-api.onrender.com (preferred). */
+  readonly VITE_API_BASE_URL?: string;
+  /** Legacy name for VITE_API_BASE_URL, still supported. */
+  readonly VITE_API_URL?: string;
 }
 
 interface ImportMeta {
