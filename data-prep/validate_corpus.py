@@ -2,12 +2,32 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import re
 import sys
 
 from act_sources import ACT_SOURCES
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_DIR = ROOT / "data" / "processed"
+
+# Fail if more than this share of records has a suspicious title or text.
+MAX_SUSPICIOUS_RATIO = 0.05
+PAGE_ARTIFACT_RE = re.compile(r"THE GAZETTE OF INDIA|_{5,}")
+
+def title_problem(title: str) -> str | None:
+    """Return why a section title looks like extracted body text, if it does."""
+    title = (title or "").strip()
+    if not title:
+        return "empty title"
+    if title.startswith("("):
+        return "title starts with a sub-section marker"
+    if title[0].islower():
+        return "title starts mid-sentence"
+    if not title.endswith((".", "—", ":")):
+        return "title is not a complete heading"
+    if len(title) > 250:
+        return "title is too long"
+    return None
 
 def validate_act(act_code: str) -> bool:
     path = PROCESSED_DIR / f"{act_code.lower()}_2023_sections.json"
@@ -60,6 +80,25 @@ def validate_act(act_code: str) -> bool:
         except (ValueError, TypeError):
             failures.append(f"invalid section number: {record.get('section')}")
 
+    suspicious = []
+    for record in records:
+        problem = title_problem(record.get("title", ""))
+        if problem:
+            suspicious.append(f"section {record.get('section')}: {problem}: {record.get('title')!r}"[:160])
+        elif PAGE_ARTIFACT_RE.search(record.get("text", "")):
+            suspicious.append(f"section {record.get('section')}: page header left in text")
+
+    if len(suspicious) > MAX_SUSPICIOUS_RATIO * len(records):
+        failures.append(
+            f"{len(suspicious)}/{len(records)} records look mis-parsed "
+            "(re-run data-prep/parse_act_pdf.py)"
+        )
+        failures.extend(suspicious[:10])
+    elif suspicious:
+        print(f"[WARN] {act_code}: {len(suspicious)} records look mis-parsed:")
+        for item in suspicious[:10]:
+            print(f"  - {item}")
+
     if len(section_numbers) != len(set(section_numbers)):
         failures.append("duplicate section numbers detected")
 
@@ -77,7 +116,7 @@ def validate_act(act_code: str) -> bool:
 
 def main():
     requested = sys.argv[1:] or list(ACT_SOURCES.keys())
-    ok = all(validate_act(code) for code in requested)
+    ok = all([validate_act(code) for code in requested])
     raise SystemExit(0 if ok else 1)
 
 if __name__ == "__main__":
