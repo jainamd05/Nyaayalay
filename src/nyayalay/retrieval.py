@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import lru_cache
 import re
 import chromadb
 from .config import (
@@ -24,9 +25,24 @@ class Candidate:
     lexical_score: float = 0.0
     retrieval_score: float = 0.0
 
+@lru_cache(maxsize=1)
+def _get_client():
+    return chromadb.PersistentClient(path=str(CHROMA_DIR))
+
 def get_collection():
-    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    return client.get_or_create_collection(CHROMA_COLLECTION)
+    return _get_client().get_or_create_collection(CHROMA_COLLECTION)
+
+def warm_up() -> int:
+    """
+    Open the index and run one tiny query so Chroma loads (and on a fresh
+    machine downloads) its embedding model before the first real request.
+    Returns the number of indexed records.
+    """
+    collection = get_collection()
+    count = collection.count()
+    if count:
+        collection.query(query_texts=["theft"], n_results=1)
+    return count
 
 def _tokens(text: str) -> set[str]:
     words = re.findall(r"[a-zA-Z0-9][a-zA-Z0-9_-]{1,}", text.lower())

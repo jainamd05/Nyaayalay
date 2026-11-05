@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { analyzeIncident } from "../services/api";
+import { analyzeIncident, wakeBackend } from "../services/api";
 import type { AnalysisResponse } from "../types/analysis";
 
 const LOADING_MESSAGES = [
@@ -16,9 +16,11 @@ const LOADING_MESSAGES = [
 function textToBullets(text: string): string[] {
   if (!text || !text.trim()) return [];
 
-  // Split on sentence endings (. or ; followed by space/end), or numbered items
+  // Split on sentence endings (. or ; followed by whitespace), or numbered
+  // items that start on a new line. (Splitting before *any* "309. " would cut
+  // sentences such as "... under Section 309. The ..." in the middle.)
   const parts = text
-    .split(/(?<=[.;])\s+|(?=\d+\.\s)/)
+    .split(/(?<=[.;])\s+|\n+(?=\s*\d+[.)]\s)/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
@@ -61,15 +63,20 @@ export default function Home() {
   const [error, setError] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Wake a sleeping backend (Render free tier) as soon as the page loads.
   useEffect(() => {
-    let interval: number;
+    wakeBackend();
+  }, []);
+
+  useEffect(() => {
+    let interval: number | undefined;
     if (loading) {
       setLoadingStep(0);
       interval = window.setInterval(() => {
         setLoadingStep((prev) => (prev + 1) % LOADING_MESSAGES.length);
       }, 2500);
     }
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [loading]);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -491,8 +498,12 @@ export default function Home() {
 
                         {/* Explanation as bullet points */}
                         {result.classification.explanation && (() => {
-                          const intro = result.classification.section
-                            ? `Based on your description, this situation aligns with ${result.classification.section}.`
+                          const section = result.classification.section;
+                          const act =
+                            result.result?.act ??
+                            result.candidates?.find((c) => c.section === section)?.act;
+                          const intro = section
+                            ? `Based on your description, this situation aligns with ${act ? `${act} ` : ""}Section ${section}.`
                             : null;
                           const bullets = textToBullets(result.classification.explanation);
 

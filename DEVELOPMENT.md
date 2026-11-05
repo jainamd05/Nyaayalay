@@ -5,9 +5,9 @@
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r backend/requirements.txt
 copy .env.example .env
-python data-prep/build_corpus_index.py
+python scripts/ingest_legal_corpus.py
 pytest
 ```
 
@@ -29,13 +29,13 @@ Do not commit generated Chroma files.
 Do not represent the development sample provisions as real law.
 
 
-## Gemini setup
+## LLM setup (Groq)
 
-Create a Gemini API key and place it in `.env`:
+Create a Groq API key and place it in `.env` (project root):
 
 ```env
-GEMINI_API_KEY=your_key
-GEMINI_MODEL=gemini-2.5-flash
+GROQ_API_KEY=your_key
+LLM_MODEL=openai/gpt-oss-20b
 ```
 
 Do not commit `.env`.

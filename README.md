@@ -104,7 +104,7 @@ nyayalay/
     └── test_verification.py
 ```
 
-## Setup
+## Setup (local)
 
 ### 1. Create and activate a virtual environment
 
@@ -125,20 +125,22 @@ source .venv/bin/activate
 ### 2. Install
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -r backend/requirements.txt
 ```
 
 ### 3. Configure the API key
 
-Copy `.env.example` to `.env` and add your Google Gemini API key.
+Copy `.env.example` to `.env` in the project root and set `GROQ_API_KEY`
+(a `backend/.env` file is also picked up).
 
-### 4. Build the local vector index
+### 4. Legal index
+
+The Chroma index for BNS, BNSS and BSA is already committed under `data/chroma/`.
+To rebuild it from `data/processed/*.json`:
 
 ```bash
-python data-prep/build_corpus_index.py
+python scripts/ingest_legal_corpus.py
 ```
-
-The script reads JSON files from `data/raw/` and creates the Chroma database in `data/chroma/`.
 
 ### 5. Run tests
 
@@ -146,13 +148,51 @@ The script reads JSON files from `data/raw/` and creates the Chroma database in 
 pytest
 ```
 
-Tests that exercise the LLM require `GEMINI_API_KEY`. The router and retrieval smoke tests can be run independently.
+The tests do not call the LLM, so they run without `GROQ_API_KEY`.
 
-### 6. Run the pipeline
+### 6. Run the app
+
+Backend (http://127.0.0.1:8000, docs at `/docs`):
 
 ```bash
-python -m nyayalay.pipeline
+uvicorn app.main:app --app-dir backend --reload
 ```
+
+Frontend (http://localhost:5173), in a second terminal:
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+The frontend calls `http://127.0.0.1:8000` in development unless
+`VITE_API_BASE_URL` is set (see `frontend/.env.example`).
+
+Or run both with Docker: `docker compose up --build`.
+
+## Deployment
+
+### Backend on Render
+
+- Build command: `pip install -r requirements.txt -r backend/requirements.txt`
+- Start command: `bash start.sh`
+- Health check path: `/api/health`
+- Environment variables:
+  - `GROQ_API_KEY` — required
+  - `LLM_MODEL` — optional, defaults to `openai/gpt-oss-20b`
+  - `FRONTEND_URL` — your Vercel URL, e.g. `https://your-app.vercel.app`
+    (comma-separate several; a trailing `/` is fine)
+  - `FRONTEND_URL_REGEX` — optional, e.g. `https://your-app-.*\.vercel\.app`
+    to also allow Vercel preview deployments
+
+`GET /api/health` reports whether the LLM key is configured and whether the
+retrieval index has finished loading.
+
+### Frontend on Vercel
+
+- Root directory: `frontend`
+- Environment variable: `VITE_API_BASE_URL` = your Render URL, e.g.
+  `https://your-api.onrender.com` (the older name `VITE_API_URL` is still
+  accepted). Vite bakes this in at build time, so **redeploy** after changing it.
 
 ## Corpus format
 
@@ -194,20 +234,16 @@ Retrieval is performed with a metadata filter based on the routed domain. This p
 7. Add a UI/API only after the backend pipeline is stable.
 
 
-## Gemini models
+## LLM provider
 
-Nyayalay uses Google's official `google-genai` Python SDK.
-
-The default development model is:
-
-```text
-gemini-2.5-flash
-```
-
-You can change the model without changing application code:
+Nyayalay calls [Groq](https://console.groq.com) through its OpenAI-compatible
+API using the `openai` Python SDK. The default model is `openai/gpt-oss-20b`;
+change it without touching code:
 
 ```env
-GEMINI_MODEL=your-model-name
+LLM_MODEL=your-model-name
 ```
 
-The pipeline uses Gemini structured JSON output with Pydantic schemas for domain routing, fact extraction, classification, and verification. Google's documentation explicitly supports structured output with Pydantic schemas. See the official documentation: https://ai.google.dev/gemini-api/docs/structured-output
+Every LLM step (routing, fact extraction, classification, verification) asks for
+JSON matching a Pydantic schema. Responses are validated, common formatting
+quirks are normalised, and an invalid reply is retried once before failing.

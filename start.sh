@@ -1,4 +1,5 @@
 #!/bin/bash
 set -e
 
+# Render start command: `bash start.sh`
 exec uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port "${PORT:-8000}"

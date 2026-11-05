@@ -4,15 +4,16 @@ React + TypeScript + Vite frontend.
 
 ## Run
 
-```powershell
+```bash
 npm install
 npm run dev
 ```
 
-The API must be running at:
+In development the app calls the API at `http://127.0.0.1:8000`.
+To use a different backend, copy `.env.example` to `.env.local` and set
+`VITE_API_BASE_URL`.
 
-```text
-http://127.0.0.1:8000
-```
+## Deploy (Vercel)
 
-Current UI is intentionally small. Build the rest of the product only after the API contract is stable.
+Set `VITE_API_BASE_URL` to the backend URL (e.g. `https://your-api.onrender.com`)
+in the Vercel project settings and redeploy — Vite embeds it at build time.

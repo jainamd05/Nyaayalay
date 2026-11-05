@@ -7,9 +7,17 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      FRONTEND_URL: http://localhost:5173
 
   frontend:
     build:
       context: frontend
     ports:
       - "5173:5173"
+    environment:
+      # Read by Vite in the browser bundle; the browser talks to the API
+      # through the port published on the host.
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - api
